@@ -1,0 +1,5 @@
+{
+  "name": "ShieldGuide",
+  "description": "Elite AI Safety Assistant for travelers, providing real-time risk assessment, emergency navigation, and cultural intelligence.",
+  "requestFramePermissions": ["geolocation"]
+}
