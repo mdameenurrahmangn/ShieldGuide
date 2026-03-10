@@ -23,12 +23,12 @@ export default function MapComponent({ center }: MapComponentProps) {
     : defaultCenter;
 
   return (
-    <div className="w-full h-full rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0">
+    <div className="w-full h-full min-h-[400px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0">
       <MapContainer 
         center={position} 
         zoom={center ? 15 : 5} 
         scrollWheelZoom={true}
-        className="w-full h-full"
+        className="w-full h-full min-h-[400px]"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

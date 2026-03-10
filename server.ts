@@ -1,62 +1,154 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import Database from "better-sqlite3";
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import path from "path";
 import { fileURLToPath } from "url";
+import * as dotenv from "dotenv";
+import { User } from "./src/models/User.js";
+import { Chat } from "./src/models/Chat.js";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const db = new Database("shieldguide.db");
-
-// Initialize database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    phone TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS feedback (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_email TEXT NOT NULL,
-    type TEXT NOT NULL,
-    message TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/shieldguide";
+const JWT_SECRET = process.env.JWT_SECRET || "shieldguide_secret";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Middleware to check database connection for API routes
+  const checkDb = (req: any, res: any, next: any) => {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: "Database is not connected. Please wait a moment or check your connection settings." 
+      });
+    }
+    next();
+  };
+
   app.use(express.json());
 
+  // Connect to MongoDB before starting the server
+  console.log("🔗 Connecting to MongoDB Atlas...");
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+    });
+    console.log("✅ Connected to MongoDB");
+  } catch (err: any) {
+    console.error("❌ MongoDB connection error:", err.message);
+    console.log("👉 Please check your MONGODB_URI and Network Access settings in Atlas.");
+    // In dev, we might still want to start the server to show the frontend
+    // but the API calls will fail via the checkDb middleware
+  }
+
+  // Disable buffering so that queries fail fast if DB is not connected
+  mongoose.set('bufferCommands', false);
+
+  // Apply DB check to all API routes except health
+  app.use("/api/auth", checkDb);
+  app.use("/api/chat", checkDb);
+  app.use("/api/feedback", checkDb);
+
   // API Routes
-  app.post("/api/auth/register", (req, res) => {
-    const { name, email, phone } = req.body;
+  app.get("/api/health", async (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({ 
+      status: 'ok', 
+      database: dbStatus,
+      mongodb_uri: MONGODB_URI.replace(/\/\/.*@/, '//***:***@') // Mask credentials if any
+    });
+  });
+  app.post("/api/auth/register", async (req, res) => {
+    const { name, email, phone, password } = req.body;
     try {
-      const stmt = db.prepare("INSERT INTO users (name, email, phone) VALUES (?, ?, ?)");
-      stmt.run(name, email, phone);
-      res.json({ success: true, user: { name, email, phone } });
-    } catch (error: any) {
-      if (error.message.includes("UNIQUE constraint failed")) {
-        // If user exists, just return the user info (simulating login)
-        const user = db.prepare("SELECT name, email, phone FROM users WHERE email = ?").get(email);
-        res.json({ success: true, user });
-      } else {
-        res.status(500).json({ error: error.message });
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists" });
       }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = new User({
+        name,
+        email,
+        phone,
+        password: hashedPassword
+      });
+
+      await user.save();
+      
+      const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ success: true, token, user: { name, email, phone } });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/feedback", (req, res) => {
+  app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(400).json({ error: "Invalid credentials" });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: "Invalid credentials" });
+      }
+
+      const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ success: true, token, user: { name: user.name, email: user.email, phone: user.phone } });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/chat/:email", async (req, res) => {
+    const { email } = req.params;
+    try {
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ error: "User not found" });
+      
+      const messages = await Chat.find({ userId: user._id }).sort({ timestamp: 1 });
+      res.json({ success: true, messages });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/chat", async (req, res) => {
+    const { email, role, content, timestamp, groundingMetadata } = req.body;
+    try {
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const chat = new Chat({
+        userId: user._id,
+        role,
+        content,
+        timestamp,
+        groundingMetadata
+      });
+
+      await chat.save();
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/feedback", async (req, res) => {
     const { email, type, message } = req.body;
     try {
-      const stmt = db.prepare("INSERT INTO feedback (user_email, type, message) VALUES (?, ?, ?)");
-      stmt.run(email, type, message);
+      // For now, keep feedback simple or create a model if needed
+      // Assuming feedback might be stored in a separate collection later
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
