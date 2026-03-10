@@ -17,15 +17,16 @@ const __dirname = path.dirname(__filename);
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/shieldguide";
 const JWT_SECRET = process.env.JWT_SECRET || "shieldguide_secret";
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+
+export const startServer = async () => {
+  const PORT = process.env.PORT || 3000;
 
   // Middleware to check database connection for API routes
   const checkDb = (req: any, res: any, next: any) => {
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ 
-        error: "Database is not connected. Please wait a moment or check your connection settings." 
+      return res.status(503).json({
+        error: "Database is not connected. Please wait a moment or check your connection settings."
       });
     }
     next();
@@ -33,7 +34,7 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Connect to MongoDB before starting the server
+  // Connect to MongoDB
   console.log("🔗 Connecting to MongoDB Atlas...");
   try {
     await mongoose.connect(MONGODB_URI, {
@@ -43,9 +44,6 @@ async function startServer() {
     console.log("✅ Connected to MongoDB");
   } catch (err: any) {
     console.error("❌ MongoDB connection error:", err.message);
-    console.log("👉 Please check your MONGODB_URI and Network Access settings in Atlas.");
-    // In dev, we might still want to start the server to show the frontend
-    // but the API calls will fail via the checkDb middleware
   }
 
   // Disable buffering so that queries fail fast if DB is not connected
@@ -59,12 +57,13 @@ async function startServer() {
   // API Routes
   app.get("/api/health", async (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       database: dbStatus,
       mongodb_uri: MONGODB_URI.replace(/\/\/.*@/, '//***:***@') // Mask credentials if any
     });
   });
+
   app.post("/api/auth/register", async (req, res) => {
     const { name, email, phone, password } = req.body;
     try {
@@ -82,7 +81,7 @@ async function startServer() {
       });
 
       await user.save();
-      
+
       const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
       res.json({ success: true, token, user: { name, email, phone } });
     } catch (error: any) {
@@ -115,7 +114,7 @@ async function startServer() {
     try {
       const user = await User.findOne({ email });
       if (!user) return res.status(404).json({ error: "User not found" });
-      
+
       const messages = await Chat.find({ userId: user._id }).sort({ timestamp: 1 });
       res.json({ success: true, messages });
     } catch (error: any) {
@@ -147,8 +146,6 @@ async function startServer() {
   app.post("/api/feedback", async (req, res) => {
     const { email, type, message } = req.body;
     try {
-      // For now, keep feedback simple or create a model if needed
-      // Assuming feedback might be stored in a separate collection later
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -169,9 +166,21 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  // Only listen if not in a serverless environment
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
+};
+
+// Auto-start for local execution
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  startServer().catch(err => {
+    console.error("Failed to start server:", err);
   });
 }
 
-startServer();
+export default app;
