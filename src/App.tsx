@@ -181,7 +181,15 @@ export default function App() {
   };
 
   const quickActions = [
-    { icon: <PhoneCall className="w-5 h-5" />, label: "Emergency SOS", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", action: () => alert("Emergency protocol activated. Local emergency numbers: 911 (US/Global), 112 (EU).") },
+    {
+      icon: <PhoneCall className="w-5 h-5" />,
+      label: "Emergency SOS",
+      color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+      action: () => {
+        setIsEmergencyPulse(true);
+        setShowEmergencyContacts(true);
+      }
+    },
     { icon: <ShieldCheck className="w-5 h-5" />, label: "Safe Landmarks", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", action: () => handleSendMessage(undefined, "What are some verified safe landmarks near me?") },
     {
       icon: <AlertTriangle className="w-5 h-5" />, label: "Report Scam", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", action: () => {

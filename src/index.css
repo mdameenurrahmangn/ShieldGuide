@@ -18,6 +18,17 @@
   --color-primary-800: var(--primary-800);
   --color-primary-900: var(--primary-900);
   --color-primary-950: var(--primary-950);
+
+  /* ShieldGuide Lavender Palette */
+  --color-lavender-50: #f5f3ff;
+  --color-lavender-100: #ede9fe;
+  --color-lavender-200: #ddd6fe;
+  --color-lavender-300: #c4b5fd;
+  --color-lavender-400: #a78bfa;
+  --color-lavender-500: #8b5cf6;
+  --color-lavender-gray: #e0e0f0;
+  --color-periwinkle: #6366f1;
+  --color-charcoal: #333333;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -111,6 +122,7 @@
   html {
     @apply transition-colors duration-300;
   }
+
   body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased transition-colors duration-300;
   }
@@ -126,13 +138,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: .8;
     transform: scale(1.05);
   }
 }
-
