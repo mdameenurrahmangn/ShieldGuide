@@ -75,10 +75,12 @@ app.use("/api/feedback", checkDb);
 
 // API Routes
 app.get("/api/health", async (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const readyState = mongoose.connection.readyState;
+  const statusMap = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   res.json({
     status: 'ok',
-    database: dbStatus,
+    database: statusMap[readyState] || 'unknown',
+    readyState: readyState,
     mongodb_uri_set: !!process.env.MONGODB_URI,
     node_env: process.env.NODE_ENV
   });
