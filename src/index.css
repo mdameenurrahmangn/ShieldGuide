@@ -19,16 +19,58 @@
   --color-primary-900: var(--primary-900);
   --color-primary-950: var(--primary-950);
 
-  /* ShieldGuide Lavender Palette */
-  --color-lavender-50: #f5f3ff;
-  --color-lavender-100: #ede9fe;
-  --color-lavender-200: #ddd6fe;
-  --color-lavender-300: #c4b5fd;
-  --color-lavender-400: #a78bfa;
-  --color-lavender-500: #8b5cf6;
-  --color-lavender-gray: #e0e0f0;
-  --color-periwinkle: #6366f1;
+  /* ShieldGuide Premium Palette */
+  --color-lavender-grey: #B8B8D1;
+  --color-lavender-light: #E0E0F0;
+  --color-deep-periwinkle: #6366F1;
+  --color-periwinkle-light: #A5B4FC;
   --color-charcoal: #333333;
+  --color-glass-bg: rgba(255, 255, 255, 0.4);
+  --color-glass-border: rgba(255, 255, 255, 0.6);
+}
+
+@layer utilities {
+  .mesh-gradient {
+    background: radial-gradient(at 0% 0%, rgba(224, 224, 240, 1) 0%, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(165, 180, 252, 1) 0%, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(196, 181, 253, 1) 0%, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(237, 233, 254, 1) 0%, transparent 50%);
+    background-color: #F5F3FF;
+  }
+
+  :where(.dark) .mesh-gradient {
+    background: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.4) 0%, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(15, 23, 42, 0.3) 0%, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(30, 41, 59, 1) 0%, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(15, 23, 42, 1) 0%, transparent 50%);
+    background-color: #0F172A;
+  }
+
+  .frosted-glass {
+    @apply bg-white/40 backdrop-blur-xl border border-white/60 shadow-lg dark:bg-slate-900/40 dark:border-white/10;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+
+  .ai-aura {
+    position: relative;
+  }
+
+  .ai-aura::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    background: conic-gradient(from 0deg, #6366F1, #A78BFA, #F5F3FF, #6366F1);
+    z-index: -1;
+    animation: rotate-aura 4s linear infinite;
+    filter: blur(8px);
+    opacity: 0.6;
+  }
+
+  @keyframes rotate-aura {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

@@ -33,7 +33,7 @@ export async function chatWithShieldGuide(
   history: Message[],
   location: { latitude: number; longitude: number } | null
 ) {
-  const model = "gemini-2.5-flash"; 
+  const model = "gemini-1.5-flash"; 
   
   const contents = history.map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
