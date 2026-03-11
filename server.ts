@@ -87,7 +87,7 @@ app.get("/api/health", async (req, res) => {
 app.post("/api/auth/register", async (req, res) => {
   const { name, email, phone, password } = req.body;
   try {
-    const existingUser = await User.findOne({ email });
+    const existingUser = await (User as any).findOne({ email });
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
@@ -132,10 +132,10 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/chat/:email", async (req, res) => {
   const { email } = req.params;
   try {
-    const user = await User.findOne({ email });
+    const user = await (User as any).findOne({ email });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const messages = await Chat.find({ userId: user._id }).sort({ timestamp: 1 });
+    const messages = await (Chat as any).find({ userId: user._id }).sort({ timestamp: 1 });
     res.json({ success: true, messages });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
