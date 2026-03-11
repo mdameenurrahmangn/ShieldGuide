@@ -80,7 +80,8 @@ app.get("/api/health", async (req, res) => {
   res.json({
     status: 'ok',
     database: dbStatus,
-    mongodb_uri: MONGODB_URI.replace(/\/\/.*@/, '//***:***@') // Mask credentials if any
+    mongodb_uri_set: !!process.env.MONGODB_URI,
+    node_env: process.env.NODE_ENV
   });
 });
 
@@ -172,8 +173,23 @@ app.post("/api/feedback", async (req, res) => {
   }
 });
 
+// Global Error Handler (Keep at the bottom of API routes)
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error("🔥 Global Server Error:", err.stack);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+  });
+});
+
 export const startServer = async () => {
   const PORT = process.env.PORT || 3000;
+
+  // Verify MONGODB_URI exists
+  if (!process.env.MONGODB_URI && process.env.NODE_ENV === 'production') {
+    console.error("🚨 CRITICAL: MONGODB_URI environment variable is not set!");
+  }
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
