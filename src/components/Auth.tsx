@@ -43,10 +43,12 @@ export default function Auth({ onLogin }: AuthProps) {
         localStorage.setItem('shieldguide_token', data.token);
         onLogin(data.user);
       } else {
+        console.error("❌ Registration API error:", data.error);
         setIsError(data.error || "Registration failed");
       }
-    } catch (error) {
-      setIsError("Connection error. Please try again.");
+    } catch (error: any) {
+      console.error("❌ Registration connection error:", error);
+      setIsError(`Connection error: ${error.message || "Please check your internet or server status."}`);
     } finally {
       setIsLoading(false);
     }
@@ -76,10 +78,12 @@ export default function Auth({ onLogin }: AuthProps) {
         localStorage.setItem('shieldguide_token', data.token);
         onLogin(data.user);
       } else {
+        console.error("❌ Login API error:", data.error);
         setIsError(data.error || "Invalid email or password");
       }
-    } catch (error) {
-      setIsError("Connection error. Please try again.");
+    } catch (error: any) {
+      console.error("❌ Login connection error:", error);
+      setIsError(`Connection error: ${error.message || "Please check your internet or server status."}`);
     } finally {
       setIsLoading(false);
     }

@@ -24,20 +24,32 @@ app.use(express.json());
 let isConnected = false;
 
 export const connectDb = async () => {
-  if (isConnected) return;
+  const state = mongoose.connection.readyState;
+  if (state === 1) return; // Already connected
+  if (state === 2) {
+    console.log("⏳ MongoDB connection is already in progress...");
+    return;
+  }
   
-  console.log("🔗 Connecting to MongoDB Atlas...");
+  console.log(`🔗 Connecting to MongoDB Atlas (State: ${state})...`);
   try {
+    // Masked logging for URI verification
+    const maskedUri = MONGODB_URI.replace(/\/\/.*@/, '//***:***@');
+    console.log(`📡 URI: ${maskedUri}`);
+
     await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 15000,
     });
     isConnected = true;
     console.log("✅ Connected to MongoDB");
-    // Disable buffering so that queries fail fast if DB is not connected
     mongoose.set('bufferCommands', false);
   } catch (err: any) {
-    console.error("❌ MongoDB connection error:", err.message);
+    console.error("❌ MongoDB connection error details:", {
+      message: err.message,
+      name: err.name,
+      code: err.code
+    });
     throw err;
   }
 };
