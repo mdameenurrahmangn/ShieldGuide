@@ -1,7 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import { Message } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const groq = new Groq({ 
+  apiKey: process.env.GROQ_API_KEY || "",
+  dangerouslyAllowBrowser: true
+});
 
 export const SYSTEM_INSTRUCTION = `You are "ShieldGuide," an elite AI Safety Assistant integrated into a Tourism Safety application. Your primary mission is to ensure traveler security through proactive risk assessment and real-time guidance.
 
@@ -25,60 +28,47 @@ Operational Parameters:
 Response Guidelines:
 - Tone: Calm, authoritative, and empathetic.
 - Safety First: If a user says "I feel unsafe," immediately trigger emergency protocols (local emergency numbers) before providing further advice.
-- Format: Use bolding for locations and bullet points for actionable steps.
-- Grounding: ALWAYS extract URLs from groundingChunks and list them as links.`;
+- Format: Use bolding for locations and bullet points for actionable steps.`;
 
 export async function chatWithShieldGuide(
   message: string,
   history: Message[],
   location: { latitude: number; longitude: number } | null
 ) {
-  const model = "gemini-1.5-flash"; 
+  const model = "llama-3.3-70b-versatile"; 
   
-  const contents = history.map(m => ({
-    role: m.role === 'user' ? 'user' : 'model',
-    parts: [{ text: m.content }]
-  }));
+  const messages: any[] = [
+    { role: 'system', content: SYSTEM_INSTRUCTION },
+    ...history.map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.content
+    }))
+  ];
 
   // Add location context directly to the user's message if available
   const locationContext = location 
     ? `[CONTEXT: User's CURRENT LIVE GPS location is ${location.latitude}, ${location.longitude}. Use this for "nearby" or "here" queries. HOWEVER, if the user explicitly mentions a different city, landmark, or provides a link/address for a specific place, prioritize that manually specified location for your analysis.]\n`
     : `[CONTEXT: User's live location is NOT available. Rely entirely on the landmarks or addresses provided in their message.]\n`;
 
-  contents.push({
+  messages.push({
     role: 'user',
-    parts: [{ text: locationContext + message }]
+    content: locationContext + message
   });
 
-  const config: any = {
-    systemInstruction: SYSTEM_INSTRUCTION,
-    tools: [{ googleMaps: {} }, { googleSearch: {} }],
-  };
-
-  if (location) {
-    config.toolConfig = {
-      retrievalConfig: {
-        latLng: {
-          latitude: location.latitude,
-          longitude: location.longitude
-        }
-      }
-    };
-  }
-
   try {
-    const response = await ai.models.generateContent({
+    const response = await groq.chat.completions.create({
       model,
-      contents,
-      config
+      messages,
+      temperature: 0.5,
+      max_tokens: 1024,
     });
 
     return {
-      text: response.text || "I'm sorry, I couldn't process that request.",
-      groundingMetadata: response.candidates?.[0]?.groundingMetadata
+      text: response.choices[0]?.message?.content || "I'm sorry, I couldn't process that request.",
+      groundingMetadata: undefined
     };
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("API Error:", error);
     throw error;
   }
 }
