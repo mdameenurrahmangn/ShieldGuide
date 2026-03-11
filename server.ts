@@ -18,139 +18,150 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/shield
 const JWT_SECRET = process.env.JWT_SECRET || "shieldguide_secret";
 
 const app = express();
+app.use(express.json());
 
-export const startServer = async () => {
-  const PORT = process.env.PORT || 3000;
+// Database connection state
+let isConnected = false;
 
-  // Middleware to check database connection for API routes
-  const checkDb = (req: any, res: any, next: any) => {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        error: "Database is not connected. Please wait a moment or check your connection settings."
-      });
-    }
-    next();
-  };
-
-  app.use(express.json());
-
-  // Connect to MongoDB
+export const connectDb = async () => {
+  if (isConnected) return;
+  
   console.log("🔗 Connecting to MongoDB Atlas...");
   try {
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 10000,
     });
+    isConnected = true;
     console.log("✅ Connected to MongoDB");
+    // Disable buffering so that queries fail fast if DB is not connected
+    mongoose.set('bufferCommands', false);
   } catch (err: any) {
     console.error("❌ MongoDB connection error:", err.message);
+    throw err;
   }
+};
 
-  // Disable buffering so that queries fail fast if DB is not connected
-  mongoose.set('bufferCommands', false);
+// Middleware to ensure database connection for API routes
+const checkDb = async (req: any, res: any, next: any) => {
+  try {
+    await connectDb();
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        error: "Database is not connected. Please wait a moment or check your connection settings."
+      });
+    }
+    next();
+  } catch (err: any) {
+    res.status(503).json({ error: "Database connection failed: " + err.message });
+  }
+};
 
-  // Apply DB check to all API routes except health
-  app.use("/api/auth", checkDb);
-  app.use("/api/chat", checkDb);
-  app.use("/api/feedback", checkDb);
+// Apply DB check to all API routes
+app.use("/api/auth", checkDb);
+app.use("/api/chat", checkDb);
+app.use("/api/feedback", checkDb);
 
-  // API Routes
-  app.get("/api/health", async (req, res) => {
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    res.json({
-      status: 'ok',
-      database: dbStatus,
-      mongodb_uri: MONGODB_URI.replace(/\/\/.*@/, '//***:***@') // Mask credentials if any
+// API Routes
+app.get("/api/health", async (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.json({
+    status: 'ok',
+    database: dbStatus,
+    mongodb_uri: MONGODB_URI.replace(/\/\/.*@/, '//***:***@') // Mask credentials if any
+  });
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  const { name, email, phone, password } = req.body;
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
+      name,
+      email,
+      phone,
+      password: hashedPassword
     });
-  });
 
-  app.post("/api/auth/register", async (req, res) => {
-    const { name, email, phone, password } = req.body;
-    try {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ error: "User already exists" });
-      }
+    await user.save();
 
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = new User({
-        name,
-        email,
-        phone,
-        password: hashedPassword
-      });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ success: true, token, user: { name, email, phone } });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-      await user.save();
-
-      const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-      res.json({ success: true, token, user: { name, email, phone } });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
-  });
 
-  app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
-    try {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-
-      const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-      res.json({ success: true, token, user: { name: user.name, email: user.email, phone: user.phone } });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
-  });
 
-  app.get("/api/chat/:email", async (req, res) => {
-    const { email } = req.params;
-    try {
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ error: "User not found" });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ success: true, token, user: { name: user.name, email: user.email, phone: user.phone } });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-      const messages = await Chat.find({ userId: user._id }).sort({ timestamp: 1 });
-      res.json({ success: true, messages });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+app.get("/api/chat/:email", async (req, res) => {
+  const { email } = req.params;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-  app.post("/api/chat", async (req, res) => {
-    const { email, role, content, timestamp, groundingMetadata } = req.body;
-    try {
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ error: "User not found" });
+    const messages = await Chat.find({ userId: user._id }).sort({ timestamp: 1 });
+    res.json({ success: true, messages });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-      const chat = new Chat({
-        userId: user._id,
-        role,
-        content,
-        timestamp,
-        groundingMetadata
-      });
+app.post("/api/chat", async (req, res) => {
+  const { email, role, content, timestamp, groundingMetadata } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-      await chat.save();
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+    const chat = new Chat({
+      userId: user._id,
+      role,
+      content,
+      timestamp,
+      groundingMetadata
+    });
 
-  app.post("/api/feedback", async (req, res) => {
-    const { email, type, message } = req.body;
-    try {
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+    await chat.save();
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/feedback", async (req, res) => {
+  const { email, type, message } = req.body;
+  try {
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export const startServer = async () => {
+  const PORT = process.env.PORT || 3000;
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
