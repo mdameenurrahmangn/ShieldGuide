@@ -1,10 +1,8 @@
+import app from '../server';
+
 export default async function handler(req: any, res: any) {
   try {
-    // Correctly import the server file (Vercel builds TS automatically)
-    // Using extension-less path ensures it works in both development and production
-    const { default: app } = await import('../server');
-    
-    // Express apps can be called as (req, res) directly in serverless functions
+    // Standard Express app execution within a Vercel serverless function
     return app(req, res);
   } catch (err: any) {
     console.error("🚨 Vercel Runtime Crash:", err);
