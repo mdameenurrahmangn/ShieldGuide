@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "leaflet/dist/leaflet.css";
 
 @theme {
@@ -180,15 +181,37 @@
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
     transform: scale(1);
   }
-
   50% {
     opacity: .8;
     transform: scale(1.05);
   }
+}
+
+/* Prose overrides for chat bubbles */
+.prose {
+  @apply text-inherit;
+}
+
+.prose p {
+  @apply my-1 leading-relaxed;
+}
+
+.prose ul, .prose ol {
+  @apply my-2 pl-4;
+}
+
+.prose li {
+  @apply my-0.5;
+}
+
+.prose strong {
+  @apply text-inherit font-bold;
+}
+
+.prose h1, .prose h2, .prose h3 {
+  @apply text-inherit font-bold my-2;
 }

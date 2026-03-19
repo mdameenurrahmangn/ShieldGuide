@@ -4,6 +4,7 @@ import App from './App.tsx';
 import { ThemeProvider } from './theme/ThemeContext.tsx';
 import './index.css';
 
+// ShieldGuide Initializer
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>

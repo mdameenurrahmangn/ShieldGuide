@@ -33,6 +33,8 @@ import {
   Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { chatWithShieldGuide } from './services/gemini';
 import { Message, LocationState, SafetyAlert, User as UserType } from './types';
 import Auth from './components/Auth';
@@ -356,7 +358,7 @@ export default function App() {
         </button>
       </div>
 
-      <div className="space-y-4 min-h-[400px]">
+      <div className="space-y-4 min-h-[400px] pb-44 md:pb-36">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
             <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center">
@@ -379,9 +381,18 @@ export default function App() {
                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-sm'
                 }`}>
                 <div className="prose prose-sm max-w-none prose-slate dark:prose-invert">
-                  {msg.content.split('\n').map((line, i) => (
-                    <p key={i} className="mb-2 last:mb-0">{line}</p>
-                  ))}
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc pl-5 my-3 space-y-1" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal pl-5 my-3" {...props} />,
+                      li: ({node, ...props}) => <li {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-bold text-slate-950 dark:text-white" {...props} />,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
 
                 {msg.groundingMetadata?.groundingChunks && (

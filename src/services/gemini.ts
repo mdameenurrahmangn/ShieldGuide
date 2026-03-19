@@ -28,7 +28,11 @@ Operational Parameters:
 Response Guidelines:
 - Tone: Calm, authoritative, and empathetic.
 - Safety First: If a user says "I feel unsafe," immediately trigger emergency protocols (local emergency numbers) before providing further advice.
-- Format: Use bolding for locations and bullet points for actionable steps.`;
+- Format: ALWAYS use standard Markdown for structure. 
+  - Use **Bolding** for specific locations, landmarks, or key warnings.
+  - Use Bulleted lists (using *) for all sets of suggestions, landmarks, or risk factors.
+  - Do NOT just split text into lines; use proper list and paragraph structures.
+  - If providing coordinates, format them clearly.`;
 
 export async function chatWithShieldGuide(
   message: string,
