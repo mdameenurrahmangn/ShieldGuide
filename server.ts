@@ -5,8 +5,8 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as dotenv from "dotenv";
-import { User } from "./src/models/User.js";
-import { Chat } from "./src/models/Chat.js";
+import { User } from "./src/models/User";
+import { Chat } from "./src/models/Chat";
 import Groq from "groq-sdk";
 
 dotenv.config();
@@ -249,11 +249,13 @@ app.post("/api/feedback", async (req, res) => {
 // Global Error Handler (Keep at the bottom of API routes)
 app.use((err: any, req: any, res: any, next: any) => {
   console.error("🔥 Global Server Error:", err.stack);
-  res.status(500).json({
-    error: "Internal Server Error",
-    message: err.message,
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined
-  });
+    res.status(500).json({ 
+      error: "Runtime Crash during initialization",
+      message: err.message,
+      stack: err.stack,
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV
+    });
 });
 
 export const startServer = async () => {

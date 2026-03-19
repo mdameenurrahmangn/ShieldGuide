@@ -11,6 +11,7 @@ export default async function handler(req: any, res: any) {
     res.status(500).json({ 
       error: "Runtime Crash during initialization",
       message: err.message,
+      stack: err.stack,
       nodeVersion: process.version,
       env: process.env.NODE_ENV
     });
