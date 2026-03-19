@@ -159,7 +159,20 @@ export default function App() {
 
     try {
       await saveMessage(userMessage);
-      const response = await chatWithShieldGuide(messageText, messages, location.coords);
+      
+      const res = await fetch('/api/chat/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: messageText, 
+          history: messages, 
+          location: location.coords 
+        })
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate response');
+      const response = await res.json();
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
