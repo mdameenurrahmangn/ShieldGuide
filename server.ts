@@ -5,8 +5,8 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as dotenv from "dotenv";
-import { User } from "./src/models/User";
-import { Chat } from "./src/models/Chat";
+import { User } from "./src/models/User.js";
+import { Chat } from "./src/models/Chat.js";
 import Groq from "groq-sdk";
 
 dotenv.config();

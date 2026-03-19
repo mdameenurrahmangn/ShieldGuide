@@ -1,8 +1,10 @@
-import app from '../server';
-
 export default async function handler(req: any, res: any) {
   try {
-    // Standard Express app execution within a Vercel serverless function
+    // Dynamically loading the server file with .js extension 
+    // This is the most reliable way for ESM + TypeScript on Vercel
+    const { default: app } = await import('../server.js');
+    
+    // Pass the request to Express
     return app(req, res);
   } catch (err: any) {
     console.error("🚨 Vercel Runtime Crash:", err);
